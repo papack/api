@@ -1,0 +1,29 @@
+{
+  "name": "@papack/api",
+  "description": "Minimal, opinionated HTTP API core for people who want full control over IO, parsing, streaming, and errors.",
+  "version": "1.0.0",
+  "author": "Matthias Steiner",
+  "repository": "github:papack/api",
+  "homepage": "https://github.com/papack/api",
+  "publishConfig": {
+    "access": "public"
+  },
+  "module": "dist/index.mjs",
+  "main": "./dist/index.cjs",
+  "types": "./dist/index.d.mts",
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "tsdown": "^0.16.8"
+  },
+  "dependencies": {
+    "@papack/schema": "^1.1.0"
+  }
+}
