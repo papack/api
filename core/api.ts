@@ -54,6 +54,7 @@ export class Api<Ctx extends AppContext> implements ApiPortInterface<Ctx> {
         if (this.cors) {
           res.setHeader("Access-Control-Allow-Origin", this.cors.origin);
           res.setHeader("Access-Control-Allow-Credentials", "true");
+          res.setHeader("Access-Control-Allow-Headers", "content-type");
         }
 
         if (req.method === "OPTIONS") {

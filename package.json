@@ -1,7 +1,7 @@
 {
   "name": "@papack/api",
   "description": "Minimal, opinionated HTTP API core for people who want full control over IO, parsing, streaming, and errors.",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "author": "Matthias Steiner",
   "repository": "github:papack/api",
   "homepage": "https://github.com/papack/api",
