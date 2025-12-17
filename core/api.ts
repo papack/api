@@ -31,16 +31,37 @@ type Route<Ctx extends AppContext> =
       handler: (ctx: Context<Ctx>) => unknown | Promise<unknown>;
     };
 
+// CORS
+type CorsOptions = {
+  origin: string;
+};
+
 export class Api<Ctx extends AppContext> implements ApiPortInterface<Ctx> {
   private server: Server;
   private routes = new Map<string, Route<Ctx>>();
   private ctx: Ctx;
+  private cors?: CorsOptions; // CORS
 
-  constructor(ctx: Ctx, options?: { maxRequestSize?: number }) {
+  constructor(
+    ctx: Ctx,
+    options?: { maxRequestSize?: number; cors?: CorsOptions } // CORS
+  ) {
     this.ctx = ctx;
+    this.cors = options?.cors; // CORS
 
     this.server = createServer(async (req, res) => {
       try {
+        if (this.cors) {
+          res.setHeader("Access-Control-Allow-Origin", this.cors.origin);
+          res.setHeader("Access-Control-Allow-Credentials", "true");
+        }
+
+        if (req.method === "OPTIONS") {
+          res.statusCode = 204;
+          res.end();
+          return;
+        }
+
         const path = req.url ?? "";
         const route = this.routes.get(path);
 
@@ -81,7 +102,7 @@ export class Api<Ctx extends AppContext> implements ApiPortInterface<Ctx> {
         for await (const chunk of req) {
           size += chunk.length;
           if (size > maxSize) {
-            res.statusCode = 404;
+            res.statusCode = 413;
             res.end(`"PAYLOAD_TOO_LARGE"`);
             return;
           }
@@ -183,22 +204,19 @@ export class Api<Ctx extends AppContext> implements ApiPortInterface<Ctx> {
   }
 
   private handleError(err: unknown, res: ServerResponse) {
-    //HTTP Error
     if (err instanceof HttpError) {
       res.statusCode = err.statusCode;
       res.end(err.body);
       return;
     }
-    // Validation Error
     if (err instanceof ValidationError) {
       res.statusCode = 400;
       res.end(`"${err.code}"`);
       return;
     }
 
-    //General Error
     res.statusCode = 500;
-    res.end(`WINTERNAL_ERROR"`);
+    res.end(`"INTERNAL_ERROR"`);
   }
 
   rpc<O>(path: string, cb: (ctx: Context<Ctx>) => O | Promise<O>): void {

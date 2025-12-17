@@ -98,6 +98,23 @@ server.upload("/upload", async (ctx) => {
 });
 ```
 
+## CORS
+
+CORS is handled centrally by the core when enabled at instantiation.
+If configured, the server:
+
+- sets `Access-Control-Allow-Origin` to a **concrete origin**
+- enables `Access-Control-Allow-Credentials` for session cookies
+- responds to `OPTIONS` preflight requests with `204`
+
+```ts
+const api = new Api(ctx, {
+  cors: {
+    origin: "http://localhost:5173",
+  },
+});
+```
+
 ## Errors
 
 - Explicit `HttpError`s only
