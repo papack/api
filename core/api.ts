@@ -210,11 +210,6 @@ export class Api<Ctx extends AppContext> implements ApiPortInterface<Ctx> {
       res.end(err.body);
       return;
     }
-    if (err instanceof ValidationError) {
-      res.statusCode = 400;
-      res.end(`"${err.code}"`);
-      return;
-    }
 
     res.statusCode = 500;
     res.end(`"INTERNAL_ERROR"`);
