@@ -9,7 +9,6 @@ import type {
   SseContext,
   AppContext,
 } from "./api-port-interface";
-import { ValidationError } from "@papack/schema";
 
 type Route<Ctx extends AppContext> =
   | {
@@ -23,7 +22,7 @@ type Route<Ctx extends AppContext> =
   | {
       kind: "blob";
       handler: (
-        ctx: Context<Ctx>
+        ctx: Context<Ctx>,
       ) => Buffer | Readable | Promise<Buffer | Readable>;
     }
   | {
@@ -33,28 +32,33 @@ type Route<Ctx extends AppContext> =
 
 // CORS
 type CorsOptions = {
-  origin: string;
+  origins: string[];
 };
 
 export class Api<Ctx extends AppContext> implements ApiPortInterface<Ctx> {
   private server: Server;
   private routes = new Map<string, Route<Ctx>>();
   private ctx: Ctx;
-  private cors?: CorsOptions; // CORS
+  private cors?: CorsOptions;
 
   constructor(
     ctx: Ctx,
-    options?: { maxRequestSize?: number; cors?: CorsOptions } // CORS
+    options?: { maxRequestSize?: number; cors?: CorsOptions },
   ) {
     this.ctx = ctx;
-    this.cors = options?.cors; // CORS
+    this.cors = options?.cors;
 
     this.server = createServer(async (req, res) => {
       try {
         if (this.cors) {
-          res.setHeader("Access-Control-Allow-Origin", this.cors.origin);
-          res.setHeader("Access-Control-Allow-Credentials", "true");
-          res.setHeader("Access-Control-Allow-Headers", "content-type");
+          const origin = req.headers.origin;
+
+          if (origin && this.cors.origins.includes(origin)) {
+            res.setHeader("Access-Control-Allow-Origin", origin);
+            res.setHeader("Vary", "Origin");
+            res.setHeader("Access-Control-Allow-Credentials", "true");
+            res.setHeader("Access-Control-Allow-Headers", "content-type");
+          }
         }
 
         if (req.method === "OPTIONS") {
@@ -98,15 +102,17 @@ export class Api<Ctx extends AppContext> implements ApiPortInterface<Ctx> {
         const reqWithBody = req as typeof req & { body: string };
         let body = "";
         let size = 0;
-        const maxSize = options?.maxRequestSize ?? 1024 * 1024; // default 1MB
+        const maxSize = options?.maxRequestSize ?? 1024 * 1024;
 
         for await (const chunk of req) {
           size += chunk.length;
+
           if (size > maxSize) {
             res.statusCode = 413;
             res.end(`"PAYLOAD_TOO_LARGE"`);
             return;
           }
+
           body += chunk.toString("utf8");
         }
 
@@ -134,6 +140,7 @@ export class Api<Ctx extends AppContext> implements ApiPortInterface<Ctx> {
           } else {
             res.end("");
           }
+
           return;
         }
 
@@ -154,7 +161,9 @@ export class Api<Ctx extends AppContext> implements ApiPortInterface<Ctx> {
 
           const runCleanup = async () => {
             if (closed) return;
+
             closed = true;
+
             for (const fn of cleanups) {
               try {
                 await fn();
@@ -167,18 +176,25 @@ export class Api<Ctx extends AppContext> implements ApiPortInterface<Ctx> {
 
           const sseCtx: SseContext<Ctx, any> = {
             ...ctx,
-            emit(event, data) {
+
+            emit(event, data, id) {
               if (!closed) {
+                if (id !== undefined) {
+                  res.write(`id: ${String(id)}\n`);
+                }
+
                 res.write(`event: ${String(event)}\n`);
                 res.write(`data: ${JSON.stringify(data)}\n\n`);
               }
             },
+
             onCleanup(fn) {
               cleanups.push(fn);
             },
           };
 
           await route.handler(sseCtx);
+
           return;
         }
 
@@ -191,11 +207,13 @@ export class Api<Ctx extends AppContext> implements ApiPortInterface<Ctx> {
           }
 
           const data = await route.handler(ctx);
+
           if (Buffer.isBuffer(data)) {
             res.end(data);
           } else {
             data.pipe(res);
           }
+
           return;
         }
       } catch (err) {
@@ -224,7 +242,7 @@ export class Api<Ctx extends AppContext> implements ApiPortInterface<Ctx> {
 
   sse<Events extends Record<string, unknown>>(
     path: string,
-    cb: (ctx: SseContext<Ctx, Events>) => void | Promise<void>
+    cb: (ctx: SseContext<Ctx, Events>) => void | Promise<void>,
   ): void {
     this.routes.set(path, {
       kind: "sse",
@@ -234,7 +252,7 @@ export class Api<Ctx extends AppContext> implements ApiPortInterface<Ctx> {
 
   blob(
     path: string,
-    cb: (ctx: Context<Ctx>) => Buffer | Readable | Promise<Buffer | Readable>
+    cb: (ctx: Context<Ctx>) => Buffer | Readable | Promise<Buffer | Readable>,
   ): void {
     this.routes.set(path, {
       kind: "blob",
@@ -244,7 +262,7 @@ export class Api<Ctx extends AppContext> implements ApiPortInterface<Ctx> {
 
   upload(
     path: string,
-    cb: (ctx: Context<Ctx>) => unknown | Promise<unknown>
+    cb: (ctx: Context<Ctx>) => unknown | Promise<unknown>,
   ): void {
     this.routes.set(path, {
       kind: "upload",
