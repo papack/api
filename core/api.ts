@@ -92,10 +92,17 @@ export class Api<Ctx extends AppContext> implements ApiPortInterface<Ctx> {
             ...this.ctx,
           };
 
-          await route.handler(ctx);
+          const result = await route.handler(ctx);
 
           res.statusCode = 200;
-          res.end(`"OK"`);
+
+          if (result !== undefined) {
+            res.setHeader("content-type", "application/json");
+            res.end(JSON.stringify(result));
+          } else {
+            res.end(`"OK"`);
+          }
+
           return;
         }
 
