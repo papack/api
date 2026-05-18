@@ -67,7 +67,8 @@ export class Api<Ctx extends AppContext> implements ApiPortInterface<Ctx> {
           return;
         }
 
-        const path = req.url ?? "";
+        const url = new URL(req.url ?? "", "http://localhost");
+        const path = url.pathname;
         const route = this.routes.get(path);
 
         //Not Found
